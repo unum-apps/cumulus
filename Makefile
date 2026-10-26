@@ -8,7 +8,6 @@ up:
 	mkdir -p secret
 	mkdir -p config
 	test -f secret/mysql.json || echo '{"host": "db.mysql", "user": "root", "password": "local"}' > secret/mysql.json
-	test -f config/unum.json || echo '{"unum": "local"}' > config/unum.json
 	test -d api/ddl || (cd api; make build; make ddl;)
 	tilt --port $(TILT_PORT) up
 

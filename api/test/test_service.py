@@ -3,11 +3,15 @@ import unittest.mock
 
 import relations
 import relations.unittest
+import relations_pymysql
 import relations_unifist
+import relations_unum
 
 import service
 import unum_cumulus
 
+import glob
+import json
 import os
 import sys
 
@@ -18,7 +22,7 @@ if not sys.warnoptions:
 MODELS = ["Bucket", "Entity", "Flush", "Journal", "Scat", "Sequence", "Slug", "Unifist", "UnifistUnum", "Unum"]
 
 SECRET = '{"host": "%s", "user": "root", "password": ""}' % os.environ["MYSQL_HOST"]
-CONFIG = '{"unum": "test"}'
+CONFIG = '{"unum": "test", "local": "cumulus-test"}'
 
 def opened(path, *args, **kwargs):
     """
@@ -33,27 +37,38 @@ class Testrestx(relations.unittest.TestCase):
     @unittest.mock.patch('service.open', side_effect=opened)
     def setUp(self, mock_open):
 
+        # Building the app writes the Route, so the databases and tables are there first, made with sources of the
+        # same names, which building the app then makes again
+
+        mysql = json.loads(SECRET)
+
+        by_name = {
+            name: relations_pymysql.Source(name, schema=schema, autocommit=True, **mysql)
+            for name, schema in [("cumulus-test", "cumulus"), ("unifist", "unifist"), ("unum", "unum")]
+        }
+
+        for source in by_name.values():
+            source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.schema}`")
+
+        # Cumulus's own tables come from its DDL, on the real DB source behind the routed one
+
+        by_name["cumulus-test"].load("ddl/cumulus/mysql/definition.sql")
+
+        # The unifist and unum tables belong to unifist-unum, so they're made from the base models, not from DDL here
+
+        for model in relations.models(relations_unifist, relations_unifist.UnifistBase):
+            by_name["unifist"].execute(model.define())
+
+        for model in relations.models(relations_unum, relations_unum.UnumBase):
+            by_name["unum"].execute(model.define())
+
         self.app = service.build()
         self.api = self.app.test_client()
-
-        migrations = relations.Migrations()
-
-        for source in self.app.sources:
-
-            source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.name}`")
-
-            # The unifist tables belong to unifist-unum, so they're made from the base models, not from DDL here
-
-            if source.name == unum_cumulus.UNIFIST:
-                for model in relations.models(relations_unifist, relations_unifist.UnifistBase):
-                    source.execute(model.define())
-            else:
-                migrations.load(source.name, "definition.sql")
 
     def tearDown(self):
 
         for source in self.app.sources:
-            source.connection.cursor().execute(f"DROP DATABASE IF EXISTS `{source.name}`")
+            source.connection.cursor().execute(f"DROP DATABASE IF EXISTS `{source.schema}`")
 
 
 class TestModels(unittest.TestCase):
@@ -74,28 +89,81 @@ class TestAPI(Testrestx):
         self.assertEqual(app.name, "cumulus-api")
         self.assertEqual(app.cumulus, "cumulus")
         self.assertEqual(app.unifist, "unifist")
-        self.assertEqual([source.name for source in app.sources], ["cumulus", "unifist"])
+        self.assertEqual([source.name for source in app.sources], ["cumulus-test", "unifist", "unum"])
         self.assertEqual(unum_cumulus.Base.UNUM, "test")
+
+        routed = relations.source("cumulus")
+
+        self.assertIsInstance(routed, relations_unum.Source)
+        self.assertEqual(routed.unum, "test")
+        self.assertEqual(routed.local, "cumulus-test")
+
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
+    def test_route(self, mock_open):
+
+        routes = lambda: relations_unum.Route.many(unum="test", source="cumulus").retrieve()
+
+        # Building the app in setUp wrote the Route
+
+        self.assertEqual(len(routes()), 1)
+        self.assertEqual(routes()[0].role, "owner")
+        self.assertEqual(routes()[0].holder, "test")
+        self.assertEqual(routes()[0].url, "")
+
+        # Building it again doesn't write another
+
+        service.build()
+
+        self.assertEqual(len(routes()), 1)
+
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
+    def test_route_last(self, mock_open):
+
+        seen = []
+
+        def route(app):
+            seen.append({
+                "sources": [source.name for source in app.sources],
+                "registered": all(relations.source(source.name) is source for source in app.sources),
+                "routed": relations.source("cumulus"),
+                "health": "/health" in [rule.rule for rule in app.url_map.iter_rules()],
+                "models": "/model/scat" in [rule.rule for rule in app.url_map.iter_rules()]
+            })
+
+        with unittest.mock.patch("service.route", side_effect=route) as mocked:
+            service.build()
+
+        # The Route is written once, and last: the cumulus DB source, the unifist source and the unum source are made and
+        # registered, the routed source is made and named by the models, and the resources are attached, all before it
+
+        mocked.assert_called_once()
+        self.assertEqual(seen[0]["sources"], ["cumulus-test", "unifist", "unum"])
+        self.assertTrue(seen[0]["registered"])
+        self.assertIsInstance(seen[0]["routed"], relations_unum.Source)
+        self.assertEqual(seen[0]["routed"].local, "cumulus-test")
+        self.assertTrue(seen[0]["health"])
+        self.assertTrue(seen[0]["models"])
 
     def test_migrations(self):
 
-        migrations = relations.Migrations()
+        local = relations.source("cumulus-test")
+        cursor = local.connection.cursor()
 
-        for name in ["cumulus", "unifist"]:
+        for migration in sorted(glob.glob("ddl/cumulus/mysql/migration-*.sql")):
 
-            cursor = self.app.sources[0].connection.cursor()
+            stamp = migration.rsplit("migration-", 1)[-1].split(".")[0]
 
-            for stamp, pair in migrations.list(name).items():
+            cursor.execute("DROP DATABASE IF EXISTS `cumulus`")
+            cursor.execute("CREATE DATABASE IF NOT EXISTS `cumulus`")
 
-                cursor.execute(f"DROP DATABASE IF EXISTS `{name}`")
-                cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{name}`")
-
-                try:
-                    migrations.load(name, pair["definition"])
-                    migrations.load(name, pair["migration"])
-                except Exception as exception:
-                    print(stamp)
-                    raise exception
+            try:
+                local.load(f"ddl/cumulus/mysql/definition-{stamp}.sql")
+                local.load(migration)
+            except Exception as exception:
+                print(stamp)
+                raise exception
 
 class TestHealth(Testrestx):
 
