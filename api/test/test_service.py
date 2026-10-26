@@ -3,6 +3,7 @@ import unittest.mock
 
 import relations
 import relations.unittest
+import relations_pymysql
 import relations_unifist
 import relations_unum
 
@@ -10,6 +11,7 @@ import service
 import unum_cumulus
 
 import glob
+import json
 import os
 import sys
 
@@ -35,13 +37,18 @@ class Testrestx(relations.unittest.TestCase):
     @unittest.mock.patch('service.open', side_effect=opened)
     def setUp(self, mock_open):
 
-        self.app = service.build()
-        self.api = self.app.test_client()
+        # Building the app writes the Route, so the databases and tables are there first, made with sources of the
+        # same names, which building the app then makes again
 
-        for source in self.app.sources:
+        mysql = json.loads(SECRET)
+
+        by_name = {
+            name: relations_pymysql.Source(name, schema=schema, autocommit=True, **mysql)
+            for name, schema in [("cumulus-test", "cumulus"), ("unifist", "unifist"), ("unum", "unum")]
+        }
+
+        for source in by_name.values():
             source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.schema}`")
-
-        by_name = {source.name: source for source in self.app.sources}
 
         # Cumulus's own tables come from its DDL, on the real DB source behind the routed one
 
@@ -54,6 +61,9 @@ class Testrestx(relations.unittest.TestCase):
 
         for model in relations.models(relations_unum, relations_unum.UnumBase):
             by_name["unum"].execute(model.define())
+
+        self.app = service.build()
+        self.api = self.app.test_client()
 
     def tearDown(self):
 
@@ -88,22 +98,53 @@ class TestAPI(Testrestx):
         self.assertEqual(routed.unum, "test")
         self.assertEqual(routed.local, "cumulus-test")
 
-    def test_route(self):
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
+    def test_route(self, mock_open):
 
         routes = lambda: relations_unum.Route.many(unum="test", source="cumulus").retrieve()
 
-        self.assertEqual(len(routes()), 0)
-
-        service.route(self.app)
+        # Building the app in setUp wrote the Route
 
         self.assertEqual(len(routes()), 1)
         self.assertEqual(routes()[0].role, "owner")
         self.assertEqual(routes()[0].holder, "test")
         self.assertEqual(routes()[0].url, "")
 
-        service.route(self.app)
+        # Building it again doesn't write another
+
+        service.build()
 
         self.assertEqual(len(routes()), 1)
+
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
+    def test_route_last(self, mock_open):
+
+        seen = []
+
+        def route(app):
+            seen.append({
+                "sources": [source.name for source in app.sources],
+                "registered": all(relations.source(source.name) is source for source in app.sources),
+                "routed": relations.source("cumulus"),
+                "health": "/health" in [rule.rule for rule in app.url_map.iter_rules()],
+                "models": "/model/scat" in [rule.rule for rule in app.url_map.iter_rules()]
+            })
+
+        with unittest.mock.patch("service.route", side_effect=route) as mocked:
+            service.build()
+
+        # The Route is written once, and last: the cumulus DB source, the unifist source and the unum source are made and
+        # registered, the routed source is made and named by the models, and the resources are attached, all before it
+
+        mocked.assert_called_once()
+        self.assertEqual(seen[0]["sources"], ["cumulus-test", "unifist", "unum"])
+        self.assertTrue(seen[0]["registered"])
+        self.assertIsInstance(seen[0]["routed"], relations_unum.Source)
+        self.assertEqual(seen[0]["routed"].local, "cumulus-test")
+        self.assertTrue(seen[0]["health"])
+        self.assertTrue(seen[0]["models"])
 
     def test_migrations(self):
 

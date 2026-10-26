@@ -68,12 +68,14 @@ def build():
 
     relations_unifist.attach(api, sys.modules[__name__], unum_cumulus.models())
 
+    route(app)
+
     return app
 
 def route(app):
     """
     Routes this unum's data to this app's DB, once: it's a Route row in the unum schema, which is there already
-    because unifist-unum migrates it, so it's a start up, not part of building the app
+    because unifist-unum migrates it
     """
 
     row = {"unum": app.unum, "source": app.cumulus, "role": "owner", "holder": app.unum}
