@@ -69,6 +69,23 @@
                 "store": "unum"
             },
             {
+                "kind": "str",
+                "name": "who",
+                "none": true,
+                "store": "who"
+            },
+            {
+                "default": "unifist",
+                "kind": "str",
+                "name": "unifist_unum",
+                "none": false,
+                "options": [
+                    "unifist",
+                    "unum"
+                ],
+                "store": "unifist_unum"
+            },
+            {
                 "kind": "dict",
                 "name": "what",
                 "none": false,
@@ -93,6 +110,10 @@
         "index": {},
         "name": "entity",
         "schema": "cumulus",
+        "slug": [
+            "who",
+            "unifist_unum"
+        ],
         "source": "cumulus",
         "store": "entity",
         "title": "Entity",

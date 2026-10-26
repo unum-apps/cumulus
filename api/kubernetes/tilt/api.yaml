@@ -14,8 +14,6 @@ spec:
         env:
         - name: LOG_LEVEL
           value: INFO
-        - name: UNIFIST_UNUM
-          value: local
         ports:
         - name: debug
           containerPort: 5678

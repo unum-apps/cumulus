@@ -69,14 +69,18 @@ relations.ManyToMany(Unifist, Unum, UnifistUnum)
 
 class Entity(Base):
     """
-    Stands in for a Unifist or a Unum so it can be the parent of everything else. Its id is the id of
-    the Unifist or Unum it stands for
+    Stands in for a Unifist or a Unum so it can be the parent of everything else. It has an id of its own,
+    like any model, and holds the id of the Unifist or Unum it stands for
     """
 
-    id = str
+    id = str                    # slug of who and unifist_unum
     version = int, 1
     unum = str, False
+    who = str                   # External id
+    unifist_unum = ["unifist", "unum"]  # Which it stands for
     what = dict, False          # Holds the unifist_id or the unum_id it stands for
+
+    SLUG = ["who", "unifist_unum"]
 
 relations.OneToOne(Unifist, Entity, child_inject="what")
 relations.OneToOne(Unum, Entity, child_inject="what")

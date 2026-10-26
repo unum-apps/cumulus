@@ -3,6 +3,7 @@ import unittest.mock
 
 import relations
 import relations.unittest
+import relations_unifist
 
 import service
 import unum_cumulus
@@ -17,11 +18,19 @@ if not sys.warnoptions:
 MODELS = ["Bucket", "Entity", "Flush", "Journal", "Scat", "Sequence", "Slug", "Unifist", "UnifistUnum", "Unum"]
 
 SECRET = '{"host": "%s", "user": "root", "password": ""}' % os.environ["MYSQL_HOST"]
+CONFIG = '{"unum": "test"}'
+
+def opened(path, *args, **kwargs):
+    """
+    Stands in for open, giving the config file its unum and everything else the secret
+    """
+
+    return unittest.mock.mock_open(read_data=CONFIG if path.endswith("unum.json") else SECRET)(path, *args, **kwargs)
 
 class Testrestx(relations.unittest.TestCase):
 
-    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO", "UNIFIST_UNUM": "test"})
-    @unittest.mock.patch('service.open', new_callable=unittest.mock.mock_open, read_data=SECRET)
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
     def setUp(self, mock_open):
 
         self.app = service.build()
@@ -32,7 +41,14 @@ class Testrestx(relations.unittest.TestCase):
         for source in self.app.sources:
 
             source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.name}`")
-            migrations.load(source.name, "definition.sql")
+
+            # The unifist tables belong to unifist-unum, so they're made from the base models, not from DDL here
+
+            if source.name == unum_cumulus.UNIFIST:
+                for model in relations.models(relations_unifist, relations_unifist.UnifistBase):
+                    source.execute(model.define())
+            else:
+                migrations.load(source.name, "definition.sql")
 
     def tearDown(self):
 
@@ -49,8 +65,8 @@ class TestModels(unittest.TestCase):
 
 class TestAPI(Testrestx):
 
-    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO", "UNIFIST_UNUM": "test"})
-    @unittest.mock.patch('service.open', new_callable=unittest.mock.mock_open, read_data=SECRET)
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
     def test_build(self, mock_open):
 
         app = service.build()
@@ -94,7 +110,7 @@ class TestModelAPI(Testrestx):
 
         response = self.api.get("/model")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(sorted(model["title"] for model in response.json["models"]), MODELS)
 
     def test_empty(self):
@@ -108,19 +124,23 @@ class TestModelAPI(Testrestx):
 
         response = self.api.post("/model/unifist", json={"unifist": {"who": "Gaf"}})
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.json)
         self.assertEqual(response.json["unifist"]["id"], "gaf:unifist.cumulus:test")
 
-        response = self.api.post("/model/entity", json={"entity": {"id": "gaf:unifist.cumulus:test"}})
+        response = self.api.post("/model/entity", json={"entity": {"who": "Gaf", "unifist_unum": "unifist"}})
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.json)
+
+        entity_id = response.json["entity"]["id"]
+
+        self.assertEqual(entity_id, "gaf-unifist:entity.cumulus:test")
 
         response = self.api.post("/model/scat", json={"scat": {
-            "entity_id": "gaf:unifist.cumulus:test",
+            "entity_id": entity_id,
             "description": "Out of milk"
         }})
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.json)
 
         scat_id = response.json["scat"]["id"]
 
@@ -128,11 +148,11 @@ class TestModelAPI(Testrestx):
 
         response = self.api.get(f"/model/scat/{scat_id}")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(response.json["scat"]["description"], "Out of milk")
         self.assertEqual(response.json["scat"]["unum"], "test")
 
         response = self.api.get("/model/journal")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(len(response.json["journals"]), 3)

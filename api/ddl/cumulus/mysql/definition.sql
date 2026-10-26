@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS `cumulus`.`entity` (
   `id` VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
   `version` BIGINT NOT NULL DEFAULT 1,
   `unum` VARCHAR(255) NOT NULL,
+  `who` VARCHAR(255),
+  `unifist_unum` VARCHAR(255) NOT NULL DEFAULT 'unifist',
   `what` JSON NOT NULL,
   PRIMARY KEY (`id`)
 );

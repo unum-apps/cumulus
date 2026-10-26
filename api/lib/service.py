@@ -3,7 +3,6 @@ Module for the Cumulus API
 """
 
 import json
-import os
 import sys
 
 import micro_logger
@@ -30,7 +29,8 @@ def build():
     app.cumulus = unum_cumulus.SOURCE
     app.unifist = unum_cumulus.UNIFIST
 
-    unum_cumulus.Base.UNUM = os.environ["UNIFIST_UNUM"]
+    with open("/opt/service/config/unum.json", "r", encoding="utf-8") as unum_file:
+        unum_cumulus.Base.UNUM = json.loads(unum_file.read())["unum"]
 
     api = relations_restx.Api(app)
 
