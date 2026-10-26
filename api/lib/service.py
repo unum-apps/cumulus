@@ -30,34 +30,33 @@ def build():
     app.cumulus = unum_cumulus.SOURCE
     app.unifist = unum_cumulus.UNIFIST
 
-    with open("/opt/service/config/unum.json", "r", encoding="utf-8") as unum_file:
-        unum = json.loads(unum_file.read())["unum"]
+    # The config is the routed source's own arguments (unum, local, members if any), passed straight through. The
+    # routed source is the one the models name, so every operation on them is routed by the Route rows in the unum
+    # schema, which unifist-unum owns and migrates, and ends at the DB source the config names. That DB is the cumulus
+    # one, named by the models' source, and the unifist schema is unifist-unum's too, for ids and the journal.
 
-    unum_cumulus.Base.UNUM = unum
+    with open("/opt/service/config/unum.json", "r", encoding="utf-8") as unum_file:
+        config = json.loads(unum_file.read())
+
+    unum_cumulus.Base.UNUM = config["unum"]
 
     api = relations_restx.Api(app)
 
     with open("/opt/service/secret/mysql.json", "r", encoding="utf-8") as mysql_file:
         mysql = json.loads(mysql_file.read())
 
-    # Cumulus's own DB, which keeps the cumulus name when it's migrated, is behind the routed source here, the one
-    # the models name, so every operation on them is routed by the Route rows in the unum schema, which unifist-unum
-    # owns and migrates. The unifist schema is its too, for ids and the journal.
-
-    local = f"{app.cumulus}-local"
-
     app.sources = [
         relations_pymysql.Source(name, schema=schema.replace('-', '_'), autocommit=True, **mysql)
         for name, schema in [
-            (local, app.cumulus),
+            (config["local"], app.cumulus),
             (app.unifist, app.unifist),
             (relations_unum.UnumBase.SOURCE, relations_unum.UnumBase.SOURCE)
         ]
     ]
 
-    relations_unum.Source(app.cumulus, unum=unum, local=local)
+    relations_unum.Source(app.cumulus, **config)
 
-    app.unum = unum
+    app.unum = config["unum"]
 
     def ping():
         for source in app.sources:

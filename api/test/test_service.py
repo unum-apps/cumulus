@@ -20,7 +20,7 @@ if not sys.warnoptions:
 MODELS = ["Bucket", "Entity", "Flush", "Journal", "Scat", "Sequence", "Slug", "Unifist", "UnifistUnum", "Unum"]
 
 SECRET = '{"host": "%s", "user": "root", "password": ""}' % os.environ["MYSQL_HOST"]
-CONFIG = '{"unum": "test"}'
+CONFIG = '{"unum": "test", "local": "cumulus-test"}'
 
 def opened(path, *args, **kwargs):
     """
@@ -45,7 +45,7 @@ class Testrestx(relations.unittest.TestCase):
 
         # Cumulus's own tables come from its DDL, on the real DB source behind the routed one
 
-        by_name["cumulus-local"].load("ddl/cumulus/mysql/definition.sql")
+        by_name["cumulus-test"].load("ddl/cumulus/mysql/definition.sql")
 
         # The unifist and unum tables belong to unifist-unum, so they're made from the base models, not from DDL here
 
@@ -79,14 +79,14 @@ class TestAPI(Testrestx):
         self.assertEqual(app.name, "cumulus-api")
         self.assertEqual(app.cumulus, "cumulus")
         self.assertEqual(app.unifist, "unifist")
-        self.assertEqual([source.name for source in app.sources], ["cumulus-local", "unifist", "unum"])
+        self.assertEqual([source.name for source in app.sources], ["cumulus-test", "unifist", "unum"])
         self.assertEqual(unum_cumulus.Base.UNUM, "test")
 
         routed = relations.source("cumulus")
 
         self.assertIsInstance(routed, relations_unum.Source)
         self.assertEqual(routed.unum, "test")
-        self.assertEqual(routed.local, "cumulus-local")
+        self.assertEqual(routed.local, "cumulus-test")
 
     def test_route(self):
 
@@ -107,7 +107,7 @@ class TestAPI(Testrestx):
 
     def test_migrations(self):
 
-        local = relations.source("cumulus-local")
+        local = relations.source("cumulus-test")
         cursor = local.connection.cursor()
 
         for migration in sorted(glob.glob("ddl/cumulus/mysql/migration-*.sql")):
