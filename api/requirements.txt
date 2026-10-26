@@ -1,6 +1,6 @@
 relations-dil==0.7.0
 relations-unifist==0.4.1
-relations-unum==0.4.2
+relations-unum==0.4.3
 relations-pymysql==0.6.19
 relations-restx==0.6.8
 relations-rest==0.5.5
