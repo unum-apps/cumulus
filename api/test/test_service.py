@@ -4,10 +4,12 @@ import unittest.mock
 import relations
 import relations.unittest
 import relations_unifist
+import relations_unum
 
 import service
 import unum_cumulus
 
+import glob
 import os
 import sys
 
@@ -36,24 +38,27 @@ class Testrestx(relations.unittest.TestCase):
         self.app = service.build()
         self.api = self.app.test_client()
 
-        migrations = relations.Migrations()
-
         for source in self.app.sources:
+            source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.schema}`")
 
-            source.connection.cursor().execute(f"CREATE DATABASE IF NOT EXISTS `{source.name}`")
+        by_name = {source.name: source for source in self.app.sources}
 
-            # The unifist tables belong to unifist-unum, so they're made from the base models, not from DDL here
+        # Cumulus's own tables come from its DDL, on the real DB source behind the routed one
 
-            if source.name == unum_cumulus.UNIFIST:
-                for model in relations.models(relations_unifist, relations_unifist.UnifistBase):
-                    source.execute(model.define())
-            else:
-                migrations.load(source.name, "definition.sql")
+        by_name["cumulus-local"].load("ddl/cumulus/mysql/definition.sql")
+
+        # The unifist and unum tables belong to unifist-unum, so they're made from the base models, not from DDL here
+
+        for model in relations.models(relations_unifist, relations_unifist.UnifistBase):
+            by_name["unifist"].execute(model.define())
+
+        for model in relations.models(relations_unum, relations_unum.UnumBase):
+            by_name["unum"].execute(model.define())
 
     def tearDown(self):
 
         for source in self.app.sources:
-            source.connection.cursor().execute(f"DROP DATABASE IF EXISTS `{source.name}`")
+            source.connection.cursor().execute(f"DROP DATABASE IF EXISTS `{source.schema}`")
 
 
 class TestModels(unittest.TestCase):
@@ -74,28 +79,50 @@ class TestAPI(Testrestx):
         self.assertEqual(app.name, "cumulus-api")
         self.assertEqual(app.cumulus, "cumulus")
         self.assertEqual(app.unifist, "unifist")
-        self.assertEqual([source.name for source in app.sources], ["cumulus", "unifist"])
+        self.assertEqual([source.name for source in app.sources], ["cumulus-local", "unifist", "unum"])
         self.assertEqual(unum_cumulus.Base.UNUM, "test")
+
+        routed = relations.source("cumulus")
+
+        self.assertIsInstance(routed, relations_unum.Source)
+        self.assertEqual(routed.unum, "test")
+        self.assertEqual(routed.local, "cumulus-local")
+
+    def test_route(self):
+
+        routes = lambda: relations_unum.Route.many(unum="test", source="cumulus").retrieve()
+
+        self.assertEqual(len(routes()), 0)
+
+        service.route(self.app)
+
+        self.assertEqual(len(routes()), 1)
+        self.assertEqual(routes()[0].role, "owner")
+        self.assertEqual(routes()[0].holder, "test")
+        self.assertEqual(routes()[0].url, "")
+
+        service.route(self.app)
+
+        self.assertEqual(len(routes()), 1)
 
     def test_migrations(self):
 
-        migrations = relations.Migrations()
+        local = relations.source("cumulus-local")
+        cursor = local.connection.cursor()
 
-        for name in ["cumulus", "unifist"]:
+        for migration in sorted(glob.glob("ddl/cumulus/mysql/migration-*.sql")):
 
-            cursor = self.app.sources[0].connection.cursor()
+            stamp = migration.rsplit("migration-", 1)[-1].split(".")[0]
 
-            for stamp, pair in migrations.list(name).items():
+            cursor.execute("DROP DATABASE IF EXISTS `cumulus`")
+            cursor.execute("CREATE DATABASE IF NOT EXISTS `cumulus`")
 
-                cursor.execute(f"DROP DATABASE IF EXISTS `{name}`")
-                cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{name}`")
-
-                try:
-                    migrations.load(name, pair["definition"])
-                    migrations.load(name, pair["migration"])
-                except Exception as exception:
-                    print(stamp)
-                    raise exception
+            try:
+                local.load(f"ddl/cumulus/mysql/definition-{stamp}.sql")
+                local.load(migration)
+            except Exception as exception:
+                print(stamp)
+                raise exception
 
 class TestHealth(Testrestx):
 

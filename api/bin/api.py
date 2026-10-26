@@ -2,4 +2,8 @@
 
 import service
 
-service.build().run(host='0.0.0.0', port=80)
+app = service.build()
+
+service.route(app)
+
+app.run(host='0.0.0.0', port=80)
