@@ -16,7 +16,7 @@ Use a version that's been tagged. Jenkins tags the version in `VERSION` on every
 
 Needs Docker, [kubectx](https://formulae.brew.sh/formula/kubectx), [Tilt](https://docs.tilt.dev/install.html) and a kind cluster with MySQL in the `mysql` namespace.
 
-- `make up` - Runs Tilt against the `kind-us` cluster (`make up CONTEXT=kind-them` to use another). GUI is http://localhost:6465, API http://localhost:16465, Tilt http://localhost:7635
+- `make up` - Runs Tilt against the `docker-desktop` cluster. GUI is http://localhost:6465, API http://localhost:16465, Tilt http://localhost:7635
 - `make down` - Removes everything from the cluster
 - `make setup` - Verifies that this repo can be installed as a module by other apps
 - `make tag` - Tags this repo with the version in `VERSION` and pushes the tag, and does nothing if it's already there
