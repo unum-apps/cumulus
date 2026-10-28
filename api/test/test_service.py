@@ -77,6 +77,22 @@ class TestModels(unittest.TestCase):
 
         self.assertEqual(sorted(model.__name__ for model in unum_cumulus.models()), MODELS)
 
+    def test_unum(self):
+
+        # The unum a query names has to be the unum field, which routing reads to know which unums to ask. A relation
+        # with the same name, to the Unum model, takes the filter for itself, so the query is for every unum and two
+        # unums joined to each other ask each other for ever
+
+        for model in unum_cumulus.models():
+
+            if "unum" not in model.thy()._fields._names:
+                continue
+
+            with self.subTest(model=model.__name__):
+                query = model.many(unum__in=["away"])
+                self.assertEqual(query._record._names["unum"].criteria, {"in": ["away"]})
+                self.assertEqual(query._ties, {})
+
 
 class TestAPI(Testrestx):
 

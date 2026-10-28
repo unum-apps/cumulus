@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- No relation is named `unum`, which is a field of every model. `Unifist` reached its `Unum`s through `unum` and `Entity` its parent `Unum` through `unum`, so a query's `unum__in=[...]` was taken as a filter on that relation, not the field, and routing, which reads the field to know which unums to ask, saw a query for every unum. Two unums joined to each other then asked each other for ever, every read failing and the database out of connections. `Unifist` reaches its `Unum`s through `unums` and `Entity` its parent `Unum` through `parent_unum` (unum-pillars/kind-clusters#13).
+
 ## 0.1.0
 
 - The Cumulus app: an API and a GUI over the Cumulus terms, `Unifist`, `Unum`, `UnifistUnum`, `Entity`, `Scat`, `Flush` and `Bucket`.

@@ -64,7 +64,10 @@ class UnifistUnum(Base):
 
     UNIQUE = ["unifist_id", "unum_id"]
 
-relations.ManyToMany(Unifist, Unum, UnifistUnum)
+# No relation is named unum, which is a field of every model: the one with the same name takes a query's unum for
+# itself, and routing, which reads the field to know which unums to ask, asks every one of them
+
+relations.ManyToMany(Unifist, Unum, UnifistUnum, sister_brother_attr="unums")
 
 
 class Entity(Base):
@@ -83,7 +86,7 @@ class Entity(Base):
     SLUG = ["who", "unifist_unum"]
 
 relations.OneToOne(Unifist, Entity, child_inject="what")
-relations.OneToOne(Unum, Entity, child_inject="what")
+relations.OneToOne(Unum, Entity, child_parent_attr="parent_unum", child_inject="what")
 
 
 class Scat(Base):
