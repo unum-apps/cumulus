@@ -38,7 +38,7 @@ def build():
     with open("/opt/service/config/unum.json", "r", encoding="utf-8") as unum_file:
         config = json.loads(unum_file.read())
 
-    unum_cumulus.Base.UNUM = config["unum"]
+    unum_cumulus.Base.HOME = config["unum"]
 
     api = relations_restx.Api(app)
 
@@ -78,7 +78,7 @@ def route(app):
     because unifist-unum migrates it
     """
 
-    row = {"unum": app.unum, "source": app.cumulus, "role": "owner", "holder": app.unum}
+    row = {"home": app.unum, "source": app.cumulus, "role": "owner", "holder": app.unum}
 
     if not relations_unum.Route.many(**row).retrieve():
         relations_unum.Route(**row).create()

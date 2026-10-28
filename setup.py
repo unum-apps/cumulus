@@ -15,6 +15,6 @@ setup(
     package_dir = {'': 'api/lib'},
     py_modules = ['unum_cumulus'],
     install_requires=[
-        'relations-unifist==0.4.1'
+        'relations-unifist>=0.5.0'
     ]
 )

@@ -77,6 +77,22 @@ class TestModels(unittest.TestCase):
 
         self.assertEqual(sorted(model.__name__ for model in unum_cumulus.models()), MODELS)
 
+    def test_home(self):
+
+        # The home a query names has to be the home field, which routing reads to know which unums to ask. A relation
+        # or any other attribute of the same name would take the filter for itself, so the query would be for every
+        # unum and two unums joined to each other would ask each other for ever
+
+        for model in unum_cumulus.models():
+
+            if "home" not in model.thy()._fields._names:
+                continue
+
+            with self.subTest(model=model.__name__):
+                query = model.many(home__in=["away"])
+                self.assertEqual(query._record._names["home"].criteria, {"in": ["away"]})
+                self.assertEqual(query._ties, {})
+
 
 class TestAPI(Testrestx):
 
@@ -90,7 +106,7 @@ class TestAPI(Testrestx):
         self.assertEqual(app.cumulus, "cumulus")
         self.assertEqual(app.unifist, "unifist")
         self.assertEqual([source.name for source in app.sources], ["cumulus-test", "unifist", "unum"])
-        self.assertEqual(unum_cumulus.Base.UNUM, "test")
+        self.assertEqual(unum_cumulus.Base.HOME, "test")
 
         routed = relations.source("cumulus")
 
@@ -102,7 +118,7 @@ class TestAPI(Testrestx):
     @unittest.mock.patch('service.open', side_effect=opened)
     def test_route(self, mock_open):
 
-        routes = lambda: relations_unum.Route.many(unum="test", source="cumulus").retrieve()
+        routes = lambda: relations_unum.Route.many(home="test", source="cumulus").retrieve()
 
         # Building the app in setUp wrote the Route
 
@@ -218,7 +234,7 @@ class TestModelAPI(Testrestx):
 
         self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(response.json["scat"]["description"], "Out of milk")
-        self.assertEqual(response.json["scat"]["unum"], "test")
+        self.assertEqual(response.json["scat"]["home"], "test")
 
         response = self.api.get("/model/journal")
 
