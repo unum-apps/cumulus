@@ -27,7 +27,7 @@ class Unifist(Base):
 
     id = str                    # slug of who
     version = int, 1            # Bumped with every change
-    unum = str, False           # The unum of the id
+    home = str, False           # The home of the id, the unum that made it
     who = str                   # External id
     what = dict, False          # Whatever else is known
     unum_id = set               # The Unums this Unifist is in, through UnifistUnum
@@ -42,7 +42,7 @@ class Unum(Base):
 
     id = str                    # slug of who
     version = int, 1            # Bumped with every change
-    unum = str, False           # The unum of the id
+    home = str, False           # The home of the id, the unum that made it
     who = str                   # External id
     what = dict, False          # Whatever else is known
     unifist_id = set            # The Unifists in this Unum, through UnifistUnum
@@ -59,15 +59,12 @@ class UnifistUnum(Base):
     unifist_id = str            # The Unifist in the Unum
     unum_id = str               # The Unum the Unifist is in
     version = int, 1
-    unum = str, False
+    home = str, False
     what = dict, False
 
     UNIQUE = ["unifist_id", "unum_id"]
 
-# No relation is named unum, which is a field of every model: the one with the same name takes a query's unum for
-# itself, and routing, which reads the field to know which unums to ask, asks every one of them
-
-relations.ManyToMany(Unifist, Unum, UnifistUnum, sister_brother_attr="unums")
+relations.ManyToMany(Unifist, Unum, UnifistUnum)
 
 
 class Entity(Base):
@@ -78,7 +75,7 @@ class Entity(Base):
 
     id = str                    # slug of who and unifist_unum
     version = int, 1
-    unum = str, False
+    home = str, False
     who = str                   # External id
     unifist_unum = ["unifist", "unum"]  # Which it stands for
     what = dict, False          # Holds the unifist_id or the unum_id it stands for
@@ -86,7 +83,7 @@ class Entity(Base):
     SLUG = ["who", "unifist_unum"]
 
 relations.OneToOne(Unifist, Entity, child_inject="what")
-relations.OneToOne(Unum, Entity, child_parent_attr="parent_unum", child_inject="what")
+relations.OneToOne(Unum, Entity, child_inject="what")
 
 
 class Scat(Base):
@@ -96,7 +93,7 @@ class Scat(Base):
 
     id = str
     version = int, 1
-    unum = str, False
+    home = str, False
     entity_id = str                             # Who recorded it, not who owns it
     description = str                           # What happened
     when = relations_unifist.microseconds       # When it happened
@@ -115,7 +112,7 @@ class Flush(Base):
 
     id = str
     version = int, 1
-    unum = str, False
+    home = str, False
     entity_id = str                             # Who flushed
     when = relations_unifist.microseconds       # When it was flushed
     what = dict, False                          # Holds the bucket_id, if flushed from a bucket
@@ -134,7 +131,7 @@ class Bucket(Base):
 
     id = str                    # slug of name
     version = int, 1
-    unum = str, False
+    home = str, False
     name = str
     what = dict, False
 

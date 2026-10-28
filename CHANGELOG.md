@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.1
+## 0.2.0
 
-- No relation is named `unum`, which is a field of every model. `Unifist` reached its `Unum`s through `unum` and `Entity` its parent `Unum` through `unum`, so a query's `unum__in=[...]` was taken as a filter on that relation, not the field, and routing, which reads the field to know which unums to ask, saw a query for every unum. Two unums joined to each other then asked each other for ever, every read failing and the database out of connections. `Unifist` reaches its `Unum`s through `unums` and `Entity` its parent `Unum` through `parent_unum` (unum-pillars/kind-clusters#13).
+- A record's `unum` field is `home` on every model (relations-unifist 0.5.0, relations-unum 0.5.0), so a query's `home__in=[...]` is a filter on the field and nothing else. Two relations were named `unum` as well (`Unifist` to `Unum`, and `Entity` to its parent `Unum`), so a query's `unum__in=[...]` was taken as a filter on the relation, not the field, and routing, which reads the field to know which unums to ask, saw a query for every unum: two unums joined to each other asked each other for ever, every read failing and the database out of connections (unum-pillars/kind-clusters#14). The `cumulus` tables have a `home` column in place of `unum`, migrated in place when the API starts, and the Route row the API writes for its own data is `home=<unum>` (relations-dil/python-relations-unifist#17).
 
 ## 0.1.0
 
