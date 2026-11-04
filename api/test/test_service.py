@@ -22,7 +22,7 @@ if not sys.warnoptions:
 MODELS = ["Bucket", "Entity", "Flush", "Journal", "Scat", "Sequence", "Slug", "Unifist", "UnifistUnum", "Unum"]
 
 SECRET = '{"host": "%s", "user": "root", "password": ""}' % os.environ["MYSQL_HOST"]
-CONFIG = '{"unum": "test", "local": "cumulus-test"}'
+CONFIG = '{"unum": "test", "local": "cumulus-test", "cert": ["/certs/client/tls.crt", "/certs/client/tls.key"], "verify": "/certs/roots/ca.crt"}'
 
 def opened(path, *args, **kwargs):
     """
@@ -113,6 +113,19 @@ class TestAPI(Testrestx):
         self.assertIsInstance(routed, relations_unum.Source)
         self.assertEqual(routed.unum, "test")
         self.assertEqual(routed.local, "cumulus-test")
+
+    @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
+    @unittest.mock.patch('service.open', side_effect=opened)
+    def test_secure(self, mock_open):
+
+        # The config's cert and verify are what each unum's calls to another present and verify with, so a route
+        # to an https url works against a unum that checks client certificates and has its own CA
+
+        rest = relations.source(self.app.cumulus).reach("away", "https://away.test")
+        session = relations.source(rest).session
+
+        self.assertEqual(session.cert, ("/certs/client/tls.crt", "/certs/client/tls.key"))
+        self.assertEqual(session.verify, "/certs/roots/ca.crt")
 
     @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
     @unittest.mock.patch('service.open', side_effect=opened)
