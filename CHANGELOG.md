@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- relations-unum 0.7.0, so `cert` and `verify` in the config file `unum.json`, the files of the Unum's client certificate and key and of the CAs it verifies the others with, reach the calls it makes to another Unum, and a Route with an `https://` url works against a Unum that checks client certificates. Without them nothing changes (relations-dil/python-relations-unum#24).
+
 ## 0.2.1
 
 - relations-unifist 0.6.0 and relations-unum 0.6.0, so a record's title reads `Full Name (handle)`, with `@home` when it is from another Unum: `Jane Doe (jane-doe@them)`. The models with a SLUG (`Unifist`, `Unum`, `Entity` and `Bucket`) get the titles from it, so no model changes (unum-apps/unifist-unum#12).
