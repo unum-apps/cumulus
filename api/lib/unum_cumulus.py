@@ -69,16 +69,16 @@ relations.ManyToMany(Unifist, Unum, UnifistUnum)
 
 class Entity(Base):
     """
-    Stands in for a Unifist or a Unum so it can be the parent of everything else. It has an id of its own,
-    like any model, and holds the id of the Unifist or Unum it stands for
+    Stands in for a Unifist, a Unum or a Bucket so it can be the parent of everything else. It has an id of its own,
+    like any model, and holds the id of the Unifist, Unum or Bucket it stands for
     """
 
     id = str                    # slug of who and unifist_unum
     version = int, 1
     home = str, False
     who = str                   # External id
-    unifist_unum = ["unifist", "unum"]  # Which it stands for
-    what = dict, False          # Holds the unifist_id or the unum_id it stands for
+    unifist_unum = ["unifist", "unum", "bucket"]  # Which it stands for
+    what = dict, False          # Holds the unifist_id, the unum_id or the bucket_id it stands for
 
     SLUG = ["who", "unifist_unum"]
 
@@ -126,17 +126,21 @@ relations.OneToMany(Flush, Scat, child_inject="what")
 
 class Bucket(Base):
     """
-    A named group for one kind of recurring Flush
+    A named group for one kind of recurring Flush, owned by an Entity, so a Bucket can own Buckets
     """
 
     id = str                    # slug of name
     version = int, 1
     home = str, False
+    entity_id = str                             # Who owns it, which is whoever made it until it changes hands
     name = str
+    criterion = dict, False                     # What belongs in it
     what = dict, False
 
     SLUG = "name"
 
+relations.OneToMany(Entity, Bucket)
+relations.OneToOne(Bucket, Entity, child_inject="what")
 relations.OneToMany(Bucket, Scat, child_inject="what")
 relations.OneToMany(Bucket, Flush, child_inject="what")
 

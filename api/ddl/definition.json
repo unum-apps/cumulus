@@ -24,9 +24,21 @@
             },
             {
                 "kind": "str",
+                "name": "entity_id",
+                "none": true,
+                "store": "entity_id"
+            },
+            {
+                "kind": "str",
                 "name": "name",
                 "none": true,
                 "store": "name"
+            },
+            {
+                "kind": "dict",
+                "name": "criterion",
+                "none": false,
+                "store": "criterion"
             },
             {
                 "kind": "dict",
@@ -81,7 +93,8 @@
                 "none": false,
                 "options": [
                     "unifist",
-                    "unum"
+                    "unum",
+                    "bucket"
                 ],
                 "store": "unifist_unum"
             },
@@ -104,6 +117,13 @@
                 "name": "unum_id",
                 "none": true,
                 "store": "unum_id"
+            },
+            {
+                "inject": "what__relations__bucket__id",
+                "kind": "str",
+                "name": "bucket_id",
+                "none": true,
+                "store": "bucket_id"
             }
         ],
         "id": "id",
