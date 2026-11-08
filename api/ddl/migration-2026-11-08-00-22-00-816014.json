@@ -1,0 +1,168 @@
+{
+    "change": {
+        "bucket": {
+            "definition": {
+                "fields": [
+                    {
+                        "auto": false,
+                        "kind": "str",
+                        "name": "id",
+                        "none": false,
+                        "readonly": true,
+                        "store": "id"
+                    },
+                    {
+                        "default": 1,
+                        "kind": "int",
+                        "name": "version",
+                        "none": false,
+                        "store": "version"
+                    },
+                    {
+                        "kind": "str",
+                        "name": "home",
+                        "none": false,
+                        "store": "home"
+                    },
+                    {
+                        "kind": "str",
+                        "name": "name",
+                        "none": true,
+                        "store": "name"
+                    },
+                    {
+                        "kind": "dict",
+                        "name": "what",
+                        "none": false,
+                        "store": "what"
+                    }
+                ],
+                "id": "id",
+                "index": {},
+                "name": "bucket",
+                "schema": "cumulus",
+                "slug": "name",
+                "source": "cumulus",
+                "store": "bucket",
+                "title": "Bucket",
+                "unique": {}
+            },
+            "migration": {
+                "fields": {
+                    "add": [
+                        {
+                            "kind": "str",
+                            "name": "entity_id",
+                            "none": true,
+                            "store": "entity_id"
+                        },
+                        {
+                            "kind": "dict",
+                            "name": "criterion",
+                            "none": false,
+                            "store": "criterion"
+                        }
+                    ]
+                }
+            }
+        },
+        "entity": {
+            "definition": {
+                "fields": [
+                    {
+                        "auto": false,
+                        "kind": "str",
+                        "name": "id",
+                        "none": false,
+                        "readonly": true,
+                        "store": "id"
+                    },
+                    {
+                        "default": 1,
+                        "kind": "int",
+                        "name": "version",
+                        "none": false,
+                        "store": "version"
+                    },
+                    {
+                        "kind": "str",
+                        "name": "home",
+                        "none": false,
+                        "store": "home"
+                    },
+                    {
+                        "kind": "str",
+                        "name": "who",
+                        "none": true,
+                        "store": "who"
+                    },
+                    {
+                        "default": "unifist",
+                        "kind": "str",
+                        "name": "unifist_unum",
+                        "none": false,
+                        "options": [
+                            "unifist",
+                            "unum"
+                        ],
+                        "store": "unifist_unum"
+                    },
+                    {
+                        "kind": "dict",
+                        "name": "what",
+                        "none": false,
+                        "store": "what"
+                    },
+                    {
+                        "inject": "what__relations__unifist__id",
+                        "kind": "str",
+                        "name": "unifist_id",
+                        "none": true,
+                        "store": "unifist_id"
+                    },
+                    {
+                        "inject": "what__relations__unum__id",
+                        "kind": "str",
+                        "name": "unum_id",
+                        "none": true,
+                        "store": "unum_id"
+                    }
+                ],
+                "id": "id",
+                "index": {},
+                "name": "entity",
+                "schema": "cumulus",
+                "slug": [
+                    "who",
+                    "unifist_unum"
+                ],
+                "source": "cumulus",
+                "store": "entity",
+                "title": "Entity",
+                "unique": {}
+            },
+            "migration": {
+                "fields": {
+                    "add": [
+                        {
+                            "inject": "what__relations__bucket__id",
+                            "kind": "str",
+                            "name": "bucket_id",
+                            "none": true,
+                            "store": "bucket_id"
+                        }
+                    ],
+                    "change": {
+                        "unifist_unum": {
+                            "options": [
+                                "unifist",
+                                "unum",
+                                "bucket"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

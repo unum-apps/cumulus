@@ -2,7 +2,9 @@ CREATE TABLE IF NOT EXISTS `cumulus`.`bucket` (
   `id` VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
   `version` BIGINT NOT NULL DEFAULT 1,
   `home` VARCHAR(255) NOT NULL,
+  `entity_id` VARCHAR(255),
   `name` VARCHAR(255),
+  `criterion` JSON NOT NULL,
   `what` JSON NOT NULL,
   PRIMARY KEY (`id`)
 );

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- A Bucket is owned by an Entity (`entity_id`) and has a `criterion`, what belongs in it. An Entity can now stand for a Bucket as well as a Unifist or a Unum, so a Bucket can own Buckets. The DDL and its migration add `entity_id` and `criterion` to `bucket`, and the new `bucket` value of `Entity.unifist_unum` needs no change to the table (unum-apps/cumulus#12).
+
 ## 0.2.2
 
 - relations-unum 0.7.0, so `cert` and `verify` in the config file `unum.json`, the files of the Unum's client certificate and key and of the CAs it verifies the others with, reach the calls it makes to another Unum, and a Route with an `https://` url works against a Unum that checks client certificates. Without them nothing changes (relations-dil/python-relations-unum#24).

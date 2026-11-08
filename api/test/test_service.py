@@ -94,6 +94,17 @@ class TestModels(unittest.TestCase):
                 self.assertEqual(query._ties, {})
 
 
+    def test_bucket(self):
+
+        # A Bucket is owned by an Entity and has a criterion, and an Entity can stand for a Bucket
+
+        names = unum_cumulus.Bucket.thy()._fields._names
+
+        self.assertIn("entity_id", names)
+        self.assertIn("criterion", names)
+        self.assertIn("bucket", unum_cumulus.Entity.thy()._fields._names["unifist_unum"].options)
+
+
 class TestAPI(Testrestx):
 
     @unittest.mock.patch.dict('os.environ', {"LOG_LEVEL": "INFO"})
@@ -253,3 +264,52 @@ class TestModelAPI(Testrestx):
 
         self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(len(response.json["journals"]), 3)
+
+    def test_bucket(self):
+
+        # A Bucket is owned by an Entity and has a criterion, and an Entity can stand for a Bucket, so a Bucket can
+        # own Buckets
+
+        response = self.api.post("/model/unifist", json={"unifist": {"who": "Gaf"}})
+
+        self.assertEqual(response.status_code, 201, response.json)
+
+        response = self.api.post("/model/entity", json={"entity": {"who": "Gaf", "unifist_unum": "unifist"}})
+
+        self.assertEqual(response.status_code, 201, response.json)
+
+        owner_id = response.json["entity"]["id"]
+
+        response = self.api.post("/model/bucket", json={"bucket": {
+            "name": "Groceries",
+            "entity_id": owner_id,
+            "criterion": {"kind": "grocery"}
+        }})
+
+        self.assertEqual(response.status_code, 201, response.json)
+
+        bucket_id = response.json["bucket"]["id"]
+
+        self.assertEqual(bucket_id, "groceries:bucket.cumulus:test")
+        self.assertEqual(response.json["bucket"]["entity_id"], owner_id)
+        self.assertEqual(response.json["bucket"]["criterion"], {"kind": "grocery"})
+
+        response = self.api.post("/model/entity", json={"entity": {"who": "Groceries", "unifist_unum": "bucket"}})
+
+        self.assertEqual(response.status_code, 201, response.json)
+
+        bucket_entity_id = response.json["entity"]["id"]
+
+        self.assertEqual(bucket_entity_id, "groceries-bucket:entity.cumulus:test")
+
+        response = self.api.post("/model/bucket", json={"bucket": {
+            "name": "Household",
+            "entity_id": bucket_entity_id
+        }})
+
+        self.assertEqual(response.status_code, 201, response.json)
+
+        response = self.api.get("/model/bucket", query_string={"entity_id": bucket_entity_id})
+
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual([bucket["name"] for bucket in response.json["buckets"]], ["Household"])
